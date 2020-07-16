@@ -85,7 +85,7 @@ type FileSystem interface {
 func NewFileSystemServer(fs FileSystem) fuse.Server {
 	return &fileSystemServer{
 		fs:             fs,
-		inflightOpsMap: make(map[interface{}]struct{}),
+		inflightOpsMap: make(map[interface{}]string),
 	}
 }
 
@@ -116,7 +116,7 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 	go func() {
 		for ol := range opsChan {
 			if ol.add {
-				s.inflightOpsMap[ol.op] = struct{}{}
+				s.inflightOpsMap[ol.op] = fmt.Sprintf("%+v", ol.op)
 			} else {
 				delete(s.inflightOpsMap, ol.op)
 			}
