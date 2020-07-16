@@ -92,7 +92,7 @@ func NewFileSystemServer(fs FileSystem) fuse.Server {
 type fileSystemServer struct {
 	fs             FileSystem
 	opsInFlight    sync.WaitGroup
-	inflightOpsMap map[interface{}]struct{}
+	inflightOpsMap map[interface{}]string
 }
 
 type opLog struct {
