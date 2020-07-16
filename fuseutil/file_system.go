@@ -84,7 +84,8 @@ type FileSystem interface {
 // requests").
 func NewFileSystemServer(fs FileSystem) fuse.Server {
 	return &fileSystemServer{
-		fs: fs,
+		fs:             fs,
+		inflightOpsMap: make(map[interface{}]struct{}),
 	}
 }
 
