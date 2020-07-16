@@ -117,7 +117,7 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 			if ol.add {
 				s.inflightOpsMap[ol.op] = struct{}{}
 			} else {
-				delete(inflightOpsMap, ol.op)
+				delete(s.inflightOpsMap, ol.op)
 			}
 		}
 	}()
