@@ -87,7 +87,9 @@ func Mount(
 	// Serve the connection in the background. When done, set the join status.
 	go func() {
 		server.ServeOps(connection)
+		config.ErrorLogger.Printf("DONE SERVING OPS, CLOSING CONNECTION\n")
 		mfs.joinStatus = connection.close()
+		config.ErrorLogger.Printf("DONE CLOSING CONNECTION.  CLOSING CHANNEL\n")
 		close(mfs.joinStatusAvailable)
 	}()
 

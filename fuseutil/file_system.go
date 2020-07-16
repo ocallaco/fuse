@@ -16,6 +16,7 @@ package fuseutil
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"sync"
 
@@ -88,21 +89,43 @@ func NewFileSystemServer(fs FileSystem) fuse.Server {
 }
 
 type fileSystemServer struct {
-	fs          FileSystem
-	opsInFlight sync.WaitGroup
+	fs             FileSystem
+	opsInFlight    sync.WaitGroup
+	inflightOpsMap map[interface{}]struct{}
+}
+
+type opLog struct {
+	op  interface{}
+	add bool
 }
 
 func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 	// When we are done, we clean up by waiting for all in-flight ops then
 	// destroying the file system.
+	opsChan := make(chan opLog)
 	defer func() {
+		close(opsChan)
+		fmt.Printf("WAITING FOR OPS INFLIGHT\n%+v\n", s.inflightOpsMap)
 		s.opsInFlight.Wait()
+		fmt.Printf("DONE -- NO OPS IN FLIGHT\nDESTROYING\n")
 		s.fs.Destroy()
+		fmt.Printf("DESTROYED FS")
+	}()
+
+	go func() {
+		for ol := range opsChan {
+			if ol.add {
+				s.inflightOpsMap[ol.op] = struct{}{}
+			} else {
+				delete(inflightOpsMap, ol.op)
+			}
+		}
 	}()
 
 	for {
 		ctx, op, err := c.ReadOp()
 		if err == io.EOF {
+			fmt.Printf("FUSE RECEIVED EOF\n")
 			break
 		}
 
@@ -111,6 +134,11 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 		}
 
 		s.opsInFlight.Add(1)
+		opsChan <- opLog{
+			op:  op,
+			add: true,
+		}
+
 		if _, ok := op.(*fuseops.ForgetInodeOp); ok {
 			// Special case: call in this goroutine for
 			// forget inode ops, which may come in a
