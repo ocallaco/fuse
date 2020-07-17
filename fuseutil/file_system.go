@@ -89,7 +89,7 @@ func NewFileSystemServer(fs FileSystem, addl ...*log.Logger) fuse.Server {
 		logger = addl[0]
 	}
 	if logger == nil {
-		logger := log.New(log.Writer(), "", 0)
+		logger = log.New(log.Writer(), "", 0)
 	}
 	return &fileSystemServer{
 		fs:             fs,
@@ -116,11 +116,11 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 	opsChan := make(chan opLog)
 	defer func() {
 		close(opsChan)
-		logger.Printf("WAITING FOR OPS INFLIGHT\n%+v\n", s.inflightOpsMap)
+		s.logger.Printf("WAITING FOR OPS INFLIGHT\n%+v\n", s.inflightOpsMap)
 		s.opsInFlight.Wait()
-		logger.Printf("DONE -- NO OPS IN FLIGHT\nDESTROYING\n")
+		s.logger.Printf("DONE -- NO OPS IN FLIGHT\nDESTROYING\n")
 		s.fs.Destroy()
-		logger.Printf("DESTROYED FS")
+		s.logger.Printf("DESTROYED FS")
 	}()
 
 	go func() {
@@ -136,7 +136,7 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 	for {
 		ctx, op, err := c.ReadOp()
 		if err == io.EOF {
-			logger.Printf("FUSE RECEIVED EOF\n")
+			s.logger.Printf("FUSE RECEIVED EOF\n")
 			break
 		}
 
