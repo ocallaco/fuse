@@ -18,11 +18,12 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"sync"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
+
+	"go.uber.org/zap"
 )
 
 // An interface with a method for each op type in the fuseops package. This can
@@ -83,13 +84,13 @@ type FileSystem interface {
 // guarantees to serialize operations that the user expects to happen in order,
 // cf. http://goo.gl/jnkHPO, fuse-devel thread "Fuse guarantees on concurrent
 // requests").
-func NewFileSystemServer(fs FileSystem, addl ...*log.Logger) fuse.Server {
-	var logger *log.Logger
+func NewFileSystemServer(fs FileSystem, addl ...*zap.Logger) fuse.Server {
+	var logger *zap.Logger
 	if len(addl) == 1 {
 		logger = addl[0]
 	}
 	if logger == nil {
-		logger = log.New(log.Writer(), "", 0)
+		logger = zap.NewNop()
 	}
 	return &fileSystemServer{
 		fs:             fs,
@@ -102,7 +103,7 @@ type fileSystemServer struct {
 	fs             FileSystem
 	opsInFlight    sync.WaitGroup
 	inflightOpsMap map[interface{}]string
-	logger         *log.Logger
+	logger         *zap.Logger
 }
 
 type opLog struct {
@@ -116,11 +117,11 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 	opsChan := make(chan opLog)
 	defer func() {
 		close(opsChan)
-		s.logger.Printf("WAITING FOR OPS INFLIGHT\n%+v\n", s.inflightOpsMap)
+		s.logger.Error(fmt.Sprintf("WAITING FOR OPS INFLIGHT\n%+v\n", s.inflightOpsMap))
 		s.opsInFlight.Wait()
-		s.logger.Printf("DONE -- NO OPS IN FLIGHT\nDESTROYING\n")
+		s.logger.Error("DONE -- NO OPS IN FLIGHT\nDESTROYING\n")
 		s.fs.Destroy()
-		s.logger.Printf("DESTROYED FS")
+		s.logger.Error("DESTROYED FS")
 	}()
 
 	go func() {
@@ -136,7 +137,7 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 	for {
 		ctx, op, err := c.ReadOp()
 		if err == io.EOF {
-			s.logger.Printf("FUSE RECEIVED EOF\n")
+			s.logger.Error("FUSE RECEIVED EOF\n")
 			break
 		}
 
@@ -166,7 +167,13 @@ func (s *fileSystemServer) handleOp(
 	c *fuse.Connection,
 	ctx context.Context,
 	op interface{}) {
-	defer s.opsInFlight.Done()
+	defer func() {
+		s.opsInFlight.Done()
+		opsChan <- opLog{
+			op:  op,
+			add: false,
+		}
+	}()
 
 	// Dispatch to the appropriate method.
 	var err error
