@@ -117,7 +117,7 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 	opsChan := make(chan opLog)
 	defer func() {
 		close(opsChan)
-		s.logger.Error(fmt.Sprintf("WAITING FOR OPS INFLIGHT\n%+v\n", s.inflightOpsMap))
+		s.logger.Error(fmt.Sprintf("WAITING FOR %d OPS INFLIGHT\n%+v\n", len(s.inflightOpsMap), s.inflightOpsMap))
 		s.opsInFlight.Wait()
 		s.logger.Error("DONE -- NO OPS IN FLIGHT\nDESTROYING\n")
 		s.fs.Destroy()
