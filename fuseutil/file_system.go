@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"sync"
 
 	"github.com/jacobsa/fuse"
@@ -82,10 +83,18 @@ type FileSystem interface {
 // guarantees to serialize operations that the user expects to happen in order,
 // cf. http://goo.gl/jnkHPO, fuse-devel thread "Fuse guarantees on concurrent
 // requests").
-func NewFileSystemServer(fs FileSystem) fuse.Server {
+func NewFileSystemServer(fs FileSystem, addl ...*log.Logger) fuse.Server {
+	var logger *log.Logger
+	if len(addl) == 1 {
+		logger = addl[0]
+	}
+	if logger == nil {
+		logger := log.New(log.Writer(), "", 0)
+	}
 	return &fileSystemServer{
 		fs:             fs,
 		inflightOpsMap: make(map[interface{}]string),
+		logger:         logger,
 	}
 }
 
@@ -93,6 +102,7 @@ type fileSystemServer struct {
 	fs             FileSystem
 	opsInFlight    sync.WaitGroup
 	inflightOpsMap map[interface{}]string
+	logger         *log.Logger
 }
 
 type opLog struct {
@@ -106,11 +116,11 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 	opsChan := make(chan opLog)
 	defer func() {
 		close(opsChan)
-		fmt.Printf("WAITING FOR OPS INFLIGHT\n%+v\n", s.inflightOpsMap)
+		logger.Printf("WAITING FOR OPS INFLIGHT\n%+v\n", s.inflightOpsMap)
 		s.opsInFlight.Wait()
-		fmt.Printf("DONE -- NO OPS IN FLIGHT\nDESTROYING\n")
+		logger.Printf("DONE -- NO OPS IN FLIGHT\nDESTROYING\n")
 		s.fs.Destroy()
-		fmt.Printf("DESTROYED FS")
+		logger.Printf("DESTROYED FS")
 	}()
 
 	go func() {
@@ -126,7 +136,7 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 	for {
 		ctx, op, err := c.ReadOp()
 		if err == io.EOF {
-			fmt.Printf("FUSE RECEIVED EOF\n")
+			logger.Printf("FUSE RECEIVED EOF\n")
 			break
 		}
 
