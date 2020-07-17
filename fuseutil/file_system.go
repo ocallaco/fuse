@@ -96,6 +96,7 @@ func NewFileSystemServer(fs FileSystem, addl ...*zap.Logger) fuse.Server {
 		fs:             fs,
 		inflightOpsMap: make(map[interface{}]string),
 		logger:         logger,
+		opsChan:        make(chan opLog),
 	}
 }
 
@@ -104,6 +105,7 @@ type fileSystemServer struct {
 	opsInFlight    sync.WaitGroup
 	inflightOpsMap map[interface{}]string
 	logger         *zap.Logger
+	opsChan        chan opLog
 }
 
 type opLog struct {
@@ -114,9 +116,8 @@ type opLog struct {
 func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 	// When we are done, we clean up by waiting for all in-flight ops then
 	// destroying the file system.
-	opsChan := make(chan opLog)
 	defer func() {
-		close(opsChan)
+		close(s.opsChan)
 		s.logger.Error(fmt.Sprintf("WAITING FOR %d OPS INFLIGHT\n%+v\n", len(s.inflightOpsMap), s.inflightOpsMap))
 		s.opsInFlight.Wait()
 		s.logger.Error("DONE -- NO OPS IN FLIGHT\nDESTROYING\n")
@@ -125,7 +126,7 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 	}()
 
 	go func() {
-		for ol := range opsChan {
+		for ol := range s.opsChan {
 			if ol.add {
 				s.inflightOpsMap[ol.op] = fmt.Sprintf("%+v", ol.op)
 			} else {
@@ -146,7 +147,7 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 		}
 
 		s.opsInFlight.Add(1)
-		opsChan <- opLog{
+		s.opsChan <- opLog{
 			op:  op,
 			add: true,
 		}
@@ -169,7 +170,7 @@ func (s *fileSystemServer) handleOp(
 	op interface{}) {
 	defer func() {
 		s.opsInFlight.Done()
-		opsChan <- opLog{
+		s.opsChan <- opLog{
 			op:  op,
 			add: false,
 		}
