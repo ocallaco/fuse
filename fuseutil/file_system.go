@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"runtime/pprof"
 	"sync"
 
 	"github.com/jacobsa/fuse"
@@ -25,6 +26,15 @@ import (
 
 	"go.uber.org/zap"
 )
+
+var fuseProf *pprof.Profile
+
+func init() {
+	fuseProf = pprof.Lookup("fusefsops")
+	if fuseProf == nil {
+		fuseProf = pprof.NewProfile("fusefsops")
+	}
+}
 
 // An interface with a method for each op type in the fuseops package. This can
 // be used in conjunction with NewFileSystemServer to avoid writing a "dispatch
@@ -175,6 +185,9 @@ func (s *fileSystemServer) handleOp(
 			add: false,
 		}
 	}()
+	key := new(byte)
+	fuseProf.Add(key, 1)
+	defer fuseProf.Remove(key)
 
 	// Dispatch to the appropriate method.
 	var err error
