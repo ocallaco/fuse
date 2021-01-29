@@ -86,6 +86,7 @@ func Mount(
 
 	// Serve the connection in the background. When done, set the join status.
 	go func() {
+		config.ErrorLogger.Printf("TEST TEST TEST FUSE TEST TEST TEST\n")
 		server.ServeOps(connection)
 		if config.ErrorLogger != nil {
 			config.ErrorLogger.Printf("DONE SERVING OPS, CLOSING CONNECTION\n")
