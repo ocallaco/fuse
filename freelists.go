@@ -15,6 +15,7 @@
 package fuse
 
 import (
+	"fmt"
 	"unsafe"
 
 	"github.com/jacobsa/fuse/internal/buffer"
@@ -26,7 +27,9 @@ import (
 
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) getInMessage() (x *buffer.InMessage) {
+	fmt.Println("getInMessage() waiting for lock")
 	c.mu.Lock()
+	fmt.Println("getInMessage() got lock")
 	x = (*buffer.InMessage)(c.inMessages.Get())
 	c.mu.Unlock()
 
@@ -34,6 +37,7 @@ func (c *Connection) getInMessage() (x *buffer.InMessage) {
 		x = new(buffer.InMessage)
 	}
 
+	fmt.Println("getInMessage() done")
 	return
 }
 

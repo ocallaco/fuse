@@ -176,9 +176,9 @@ func mount(dir string, cfg *MountConfig, ready chan<- error) (*os.File, error) {
 
 	// Try mounting without fusermount(1) first: we might be running as root or
 	// have the CAP_SYS_ADMIN capability.
-	dev, err := directmount(dir, cfg)
-	if err == errFallback {
-		return fusermount(dir, cfg)
-	}
-	return dev, err
+	//	dev, err := directmount(dir, cfg)
+	//	if err == errFallback {
+	return fusermount(dir, cfg)
+	//	}
+	//	return dev, err
 }

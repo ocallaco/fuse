@@ -376,11 +376,13 @@ func (c *Connection) ReadOp() (ctx context.Context, op interface{}, err error) {
 	for {
 		// Read the next message from the kernel.
 		var inMsg *buffer.InMessage
+		fmt.Printf("READING MESSAGE\n")
 		inMsg, err = c.readMessage()
 		if err != nil {
+			fmt.Printf("READ MESSAGE WITH ERROR %s\n", err)
 			return
 		}
-
+		fmt.Printf("READ MESSAGE\n")
 		// Convert the message to an op.
 		outMsg := c.getOutMessage()
 		op, err = convertInMessage(inMsg, outMsg, c.protocol)
