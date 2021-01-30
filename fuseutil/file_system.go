@@ -187,7 +187,7 @@ func (s *fileSystemServer) handleOp(
 	}()
 	key := new(byte)
 	fuseProf.Add(key, 1)
-	defer fuseProf.Remove(key)
+	//defer fuseProf.Remove(key)
 
 	// Dispatch to the appropriate method.
 	var err error
